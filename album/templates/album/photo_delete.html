@@ -1,0 +1,7 @@
+<p><a href="/">← Back</a></p>
+<h2>Delete: {{ photo.name }}</h2>
+
+<form method="post">
+  {% csrf_token %}
+  <button type="submit">Yes, delete</button>
+</form>

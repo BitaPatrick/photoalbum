@@ -1,0 +1,21 @@
+<h1>Photo Album</h1>
+
+<p>
+  Sort:
+  <a href="/?sort=date">Date</a> |
+  <a href="/?sort=name">Name</a>
+</p>
+
+<p><a href="/upload/">Upload new photo</a></p>
+
+<ul>
+  {% for p in photos %}
+    <li>
+      <a href="/photo/{{ p.id }}/">{{ p.name }}</a>
+      — {{ p.uploaded_at|date:"Y-m-d H:i" }}
+      <a href="/photo/{{ p.id }}/delete/">(delete)</a>
+    </li>
+  {% empty %}
+    <li>No photos yet.</li>
+  {% endfor %}
+</ul>
