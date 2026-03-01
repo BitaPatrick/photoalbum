@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Photoalbum{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'album/style.css' %}">
+</head>
+<body>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <header class="topbar">
+    <a class="brand" href="{% url 'photo_list' %}">Photoalbum</a>
+    <nav class="nav">
+      {% if user.is_authenticated %}
+        <span class="user-pill">{{ user.username }}</span>
+        <a class="btn btn-secondary" href="{% url 'photo_upload' %}">Feltöltés</a>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button class="btn btn-ghost" type="submit">Kilépés</button>
+        </form>
+      {% else %}
+        <a class="btn btn-secondary" href="{% url 'login' %}">Belépés</a>
+        <a class="btn btn-primary" href="{% url 'register' %}">Regisztráció</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="container">
+    {% if messages %}
+      <section class="flash-stack">
+        {% for message in messages %}
+          <p class="flash">{{ message }}</p>
+        {% endfor %}
+      </section>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

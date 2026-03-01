@@ -1,10 +1,24 @@
-<h1>Register</h1>
+{% extends "base.html" %}
 
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Create account</button>
-</form>
+{% block title %}Regisztráció{% endblock %}
 
-<p>Already have an account? <a href="{% url 'login' %}">Login</a></p>
-<p><a href="{% url 'photo_list' %}">Back to album</a></p>
+{% block content %}
+  <section class="card form-card">
+    <div class="page-head">
+      <div>
+        <h1>Regisztráció</h1>
+        <p class="subtle">Készíts fiókot a feltöltéshez és törléshez.</p>
+      </div>
+      <a class="btn btn-ghost" href="{% url 'photo_list' %}">Vissza</a>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions-row">
+        <button class="btn btn-primary" type="submit">Fiók létrehozása</button>
+        <a class="btn btn-secondary" href="{% url 'login' %}">Belépés</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

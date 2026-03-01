@@ -1,13 +1,25 @@
-<p><a href="/">← Back</a></p>
-<h2>Delete: {{ photo.name }}</h2>
+{% extends "base.html" %}
 
-{% if messages %}
-  {% for message in messages %}
-    <p style="color:red;">{{ message }}</p>
-  {% endfor %}
-{% endif %}
+{% block title %}Törlés{% endblock %}
 
-<form method="post">
-  {% csrf_token %}
-  <button type="submit">Yes, delete</button>
-</form>
+{% block content %}
+  <section class="card form-card">
+    <div class="page-head">
+      <div>
+        <h1>Törlés megerősítése</h1>
+        <p class="subtle">Kép: <strong>{{ photo.name }}</strong></p>
+      </div>
+      <a class="btn btn-ghost" href="{% url 'photo_detail' photo.id %}">Mégse</a>
+    </div>
+
+    <p class="danger-note">Ez a művelet a storage objektumot és az adatbázis rekordot is törli.</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="actions-row">
+        <button class="btn btn-danger" type="submit">Igen, törlöm</button>
+        <a class="btn btn-ghost" href="{% url 'photo_detail' photo.id %}">Vissza</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

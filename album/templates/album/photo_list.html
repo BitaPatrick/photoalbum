@@ -1,42 +1,54 @@
-<h1>Photo Album</h1>
+{% extends "base.html" %}
 
-{% if user.is_authenticated %}
-  <p>
-    Logged in as <strong>{{ user.username }}</strong>
-    <form method="post" action="{% url 'logout' %}" style="display:inline;">
-      {% csrf_token %}
-      <button type="submit">Logout</button>
-    </form>
-  </p>
-{% else %}
-  <p>
-    <a href="{% url 'login' %}">Login</a> |
-    <a href="{% url 'register' %}">Register</a>
-  </p>
-{% endif %}
+{% block title %}Album{% endblock %}
 
-<p>
-  Sort:
-  <a href="/?sort=date">Date</a> |
-  <a href="/?sort=name">Name</a>
-</p>
+{% block content %}
+  <section class="card">
+    <div class="page-head">
+      <div>
+        <h1>Fényképalbum</h1>
+        <p class="subtle">Rendezett lista, gyors megnyitás, biztonságos törlés.</p>
+      </div>
+    </div>
 
-{% if user.is_authenticated %}
-  <p><a href="{% url 'photo_upload' %}">Upload new photo</a></p>
-{% else %}
-  <p><a href="{% url 'login' %}">Login to upload</a></p>
-{% endif %}
-
-<ul>
-  {% for photo in photos %}
-    <li>
-      <a href="{% url 'photo_detail' photo.id %}">{{ photo.name }}</a>
-      — {{ photo.uploaded_at|date:"Y-m-d H:i" }}
+    <div class="toolbar">
+      <div class="sort-group">
+        <a class="sort-chip {% if sort == 'date' %}active{% endif %}" href="/?sort=date">Dátum szerint</a>
+        <a class="sort-chip {% if sort == 'name' %}active{% endif %}" href="/?sort=name">Név szerint</a>
+      </div>
       {% if user.is_authenticated %}
-        | <a href="{% url 'photo_delete' photo.id %}">Delete</a>
+        <a class="btn btn-primary" href="{% url 'photo_upload' %}">Új kép feltöltése</a>
+      {% else %}
+        <a class="btn btn-secondary" href="{% url 'login' %}">Belépés a feltöltéshez</a>
       {% endif %}
-    </li>
-  {% empty %}
-    <li>No photos yet.</li>
-  {% endfor %}
-</ul>
+    </div>
+
+    {% if photos %}
+      <ul class="photo-grid">
+        {% for photo in photos %}
+          <li class="photo-item">
+            <a href="{% url 'photo_detail' photo.id %}">
+              <img src="{{ photo.image_url }}" alt="{{ photo.name }}">
+            </a>
+            <div class="photo-meta">
+              <h2 class="photo-title">
+                <a href="{% url 'photo_detail' photo.id %}">{{ photo.name }}</a>
+              </h2>
+              <span class="meta-line">{{ photo.uploaded_at|date:"Y-m-d H:i" }}</span>
+              <div class="item-actions">
+                <a class="btn btn-secondary" href="{% url 'photo_detail' photo.id %}">Megnyitás</a>
+                {% if user.is_authenticated %}
+                  <a class="btn btn-ghost" href="{% url 'photo_delete' photo.id %}">Törlés</a>
+                {% endif %}
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty">
+        <p>Még nincs feltöltött kép.</p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

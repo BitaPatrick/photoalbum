@@ -1,8 +1,23 @@
-<p><a href="/">← Back</a></p>
-<h2>{{ photo.name }}</h2>
-<p>{{ photo.uploaded_at|date:"Y-m-d H:i" }}</p>
-{% if user.is_authenticated %}
-  <p><a href="{% url 'photo_delete' photo.id %}">Delete this photo</a></p>
-{% endif %}
+{% extends "base.html" %}
 
-<img src="{{ photo.image_url }}" style="max-width: 600px;" />
+{% block title %}{{ photo.name }}{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <div class="page-head">
+      <div>
+        <h1>{{ photo.name }}</h1>
+        <p class="subtle">Feltöltve: {{ photo.uploaded_at|date:"Y-m-d H:i" }}</p>
+      </div>
+      <a class="btn btn-ghost" href="{% url 'photo_list' %}">Vissza</a>
+    </div>
+
+    <img class="detail-image" src="{{ photo.image_url }}" alt="{{ photo.name }}">
+
+    {% if user.is_authenticated %}
+      <div class="actions-row">
+        <a class="btn btn-ghost" href="{% url 'photo_delete' photo.id %}">Kép törlése</a>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

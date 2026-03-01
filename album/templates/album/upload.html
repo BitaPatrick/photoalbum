@@ -1,21 +1,27 @@
-<h1>Upload photo</h1>
+{% extends "base.html" %}
 
-<p>
-  Logged in as <strong>{{ user.username }}</strong>
-  <form method="post" action="{% url 'logout' %}" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit">Logout</button>
-  </form>
-</p>
+{% block title %}Feltöltés{% endblock %}
 
-{% if error %}
-  <p style="color:red;">{{ error }}</p>
-{% endif %}
+{% block content %}
+  <section class="card form-card">
+    <div class="page-head">
+      <div>
+        <h1>Új kép feltöltése</h1>
+        <p class="subtle">A név legfeljebb 40 karakter lehet.</p>
+      </div>
+      <a class="btn btn-ghost" href="{% url 'photo_list' %}">Vissza</a>
+    </div>
 
-<form method="post" enctype="multipart/form-data">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Upload</button>
-</form>
+    {% if error %}
+      <p class="flash">{{ error }}</p>
+    {% endif %}
 
-<p><a href="{% url 'photo_list' %}">Back</a></p>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions-row">
+        <button class="btn btn-primary" type="submit">Feltöltés</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}
