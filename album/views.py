@@ -55,7 +55,7 @@ def upload_photo(request):
                 print("UPLOAD ERROR:", repr(e))
                 print(traceback.format_exc())
                 # ezt is megmutathatod debugra:
-                return render(request, "album/upload.html", {"form": form, "error": str(e)}, status=500)
+                return render(request, "album/upload_photo.html", {"form": form, "error": str(e)}, status=500)
 
     else:
         form = PhotoForm()
