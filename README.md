@@ -1,89 +1,55 @@
-# Fényképalbum alkalmazás (Django + Render + Supabase)
+# Fényképalbum
 
-Ez egy Django alapú fényképalbum webalkalmazás, amit PaaS környezetben futtatok.
-A végleges változat többrétegű és skálázható felépítésű:
+Egyszerű Django-s fényképalbum alkalmazás.
 
-- Web réteg: Render (Django + Gunicorn)
-- Adatbázis réteg: Supabase Postgres
+## Élő verzió
+
+https://photoalbum-k6w1.onrender.com
+
+## Röviden mit tud
+
+- Kép feltöltése
+- Kép törlése
+- Lista név vagy dátum szerinti rendezéssel
+- Kattintásra kép megnyitása
+- Regisztráció / belépés / kilépés
+- Feltöltés és törlés csak bejelentkezve
+
+## Technikai felépítés
+
+- Web app: Render (Django + Gunicorn)
+- Adatbázis: Supabase Postgres
 - Fájltárolás: Supabase Storage
 
-## Publikus alkalmazás
-
-- URL: `https://<sajat-render-app>.onrender.com`
-
-## Funkciók
-
-- Kép feltöltése (név + fájl)
-- Kép törlése
-- Képek listázása név vagy dátum szerinti rendezéssel
-- Listaelemre kattintva részletes nézet (kép megjelenítése)
-- Felhasználókezelés: regisztráció, bejelentkezés, kijelentkezés
-- Jogosultság: feltöltés és törlés csak bejelentkezett felhasználónak
-- Kép neve maximum 40 karakter
-- Feltöltési dátum automatikus mentése és megjelenítése (`ÉÉÉÉ-HH-NN ÓÓ:PP`)
-
-## Miért többrétegű és skálázható?
-
-- A webalkalmazás, az adatbázis és a fájltárolás külön szolgáltatásban fut.
-- Emiatt az egyes rétegek külön-külön skálázhatók és kezelhetők.
-- A renderes deploy GitHub push-ra automatikusan elindul.
-
-## Környezeti változók (Render Environment)
-
-A Render szolgáltatásban ezeket a változókat kell beállítani:
+## Render környezeti változók
 
 - `DJANGO_SECRET_KEY`
-- `DJANGO_DEBUG` (`False` éles környezetben)
-- `DATABASE_URL` (Supabase Postgres connection string)
+- `DJANGO_DEBUG` (`False`)
+- `DATABASE_URL`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_BUCKET` (pl. `photos`)
-- `PYTHON_VERSION` (pl. `3.11.9`)
+- `SUPABASE_BUCKET`
+- `PYTHON_VERSION`
 
-Megjegyzés: a `SUPABASE_ANON_KEY` nálam be van állítva, de a backend kód jelenleg nem használja.
+## Deploy
 
-## Supabase beállítás
+Render automatikusan deployol GitHub push után.
 
-1. Hozz létre egy projektet Supabase-ben.
-2. Hozz létre egy Storage bucketet (pl. `photos`).
-3. Másold ki:
-   - Project URL -> `SUPABASE_URL`
-   - `service_role` kulcs -> `SUPABASE_SERVICE_ROLE_KEY`
-4. A Postgres kapcsolatból másold ki a `DATABASE_URL` értéket.
-5. Ezt add meg a Render Environment-ben.
+Build command:
+`pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate`
 
-## Render beállítás (pontos lépések)
+Start command:
+`gunicorn config.wsgi:application`
 
-1. Renderben hozz létre egy `Web Service`-t GitHub repo-ból.
-2. Build Command:
-   `pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate`
-3. Start Command:
-   `gunicorn config.wsgi:application`
-4. Állítsd be a fenti környezeti változókat az Environment oldalon.
-5. Mentsd el, majd indíts deployt (vagy pusholj GitHubra).
+## Beadás bontás
 
-## Lokális futtatás
+### 1. beadás
 
-1. Virtuális környezet létrehozása/aktiválása
-2. Függőségek telepítése:
-   `pip install -r requirements.txt`
-3. Környezeti változók beállítása
-4. Migráció:
-   `python manage.py migrate`
-5. Indítás:
-   `python manage.py runserver`
+- Lokális SQLite
+- Alap funkciók (feltöltés, listázás, rendezés, részletek)
 
-## Beadás felosztása
+### 2. beadás
 
-### 1. beadás (minimum verzió)
-
-- Lokális SQLite adatbázis
-- Alap funkciók: feltöltés, listázás, rendezés, részletek
-- Első PaaS deploy
-
-### 2. beadás (végleges verzió)
-
-- Külön adatbázis szerver: Supabase Postgres
-- Külön storage: Supabase Storage
-- Felhasználókezelés + jogosultságkezelés
-- Törlésnél storage objektum + DB rekord együtt kezelve
+- Külön adatbázis szerver (Supabase Postgres)
+- Külön storage (Supabase Storage)
+- Felhasználókezelés + jogosultság
