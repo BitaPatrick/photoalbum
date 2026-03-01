@@ -1,9 +1,12 @@
 import os
 import uuid
-from django.shortcuts import render, redirect, get_object_or_404
+import logging
+from django.shortcuts import render, redirect
 from .models import Photo
 from .forms import PhotoForm
 from .supabase_client import get_client
+
+logger = logging.getLogger(__name__)
 
 def photo_list(request):
     sort = request.GET.get("sort", "date")
@@ -17,6 +20,7 @@ def photo_detail(request, pk):
     photo = get_object_or_404(Photo, pk=pk)
     return render(request, "album/photo_detail.html", {"photo": photo})
 
+
 def photo_upload(request):
     if request.method == "POST":
         form = PhotoForm(request.POST, request.FILES)
@@ -27,22 +31,32 @@ def photo_upload(request):
             sb = get_client()
             bucket = os.environ.get("SUPABASE_BUCKET", "photos")
 
-           
-            sb.storage.from_(bucket).upload(
-                path=filename,
-                file=file_obj.read(),
-                file_options={"content-type": file_obj.content_type},
-            )
+            try:
+                content = file_obj.read()
 
-            
-            public_url_res = sb.storage.from_(bucket).get_public_url(filename)
-            public_url = public_url_res if isinstance(public_url_res, str) else public_url_res.get("publicUrl")
+                sb.storage.from_(bucket).upload(
+                    path=filename,
+                    file=content,
+                    file_options={
+                        "content-type": file_obj.content_type or "application/octet-stream",
+                        "upsert": "true",
+                    },
+                )
 
-            Photo.objects.create(
-                name=form.cleaned_data["name"],
-                image_url=public_url,
-            )
-            return redirect("photo_list")
+                public_url_res = sb.storage.from_(bucket).get_public_url(filename)
+                public_url = public_url_res if isinstance(public_url_res, str) else public_url_res.get("publicUrl")
+
+                Photo.objects.create(
+                    name=form.cleaned_data["name"],
+                    image_url=public_url or "",
+                )
+                return redirect("photo_list")
+
+            except Exception as e:
+                logger.exception("Supabase upload failed")
+                # ideiglenesen kiírjuk a hibát a böngészőnek is
+                return render(request, "album/photo_form.html", {"form": form, "error": str(e)})
+
     else:
         form = PhotoForm()
     return render(request, "album/photo_form.html", {"form": form})
