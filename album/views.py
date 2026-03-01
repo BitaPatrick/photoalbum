@@ -56,3 +56,10 @@ def photo_upload(request):
         form = PhotoForm()
 
     return render(request, "album/photo_form.html", {"form": form})
+
+def photo_delete(request, pk):
+    photo = get_object_or_404(Photo, pk=pk)
+    if request.method == "POST":
+        photo.delete()
+        return redirect("photo_list")
+    return render(request, "album/photo_delete.html", {"photo": photo})
