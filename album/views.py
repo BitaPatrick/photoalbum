@@ -2,6 +2,10 @@ import os
 import uuid
 import traceback
 
+from django.contrib import messages
+from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Photo
 from .forms import PhotoForm
@@ -22,6 +26,7 @@ def photo_detail(request, pk):
     return render(request, "album/photo_detail.html", {"photo": photo})
 
 
+@login_required
 def photo_upload(request):
     if request.method == "POST":
         form = PhotoForm(request.POST, request.FILES)
@@ -61,9 +66,34 @@ def photo_upload(request):
     return render(request, "album/upload.html", {"form": form})
 
 
+@login_required
 def photo_delete(request, pk):
     photo = get_object_or_404(Photo, pk=pk)
     if request.method == "POST":
-        photo.delete()
-        return redirect("photo_list")
+        try:
+            sb = get_client()
+            bucket = os.environ.get("SUPABASE_BUCKET", "photos")
+            sb.storage.from_(bucket).remove([photo.storage_path])
+            photo.delete()
+            return redirect("photo_list")
+        except Exception as e:
+            print("DELETE ERROR:", repr(e))
+            print(traceback.format_exc())
+            messages.error(request, f"Delete failed: {e}")
+            return redirect("photo_delete", pk=photo.pk)
     return render(request, "album/photo_delete.html", {"photo": photo})
+
+
+def register(request):
+    if request.user.is_authenticated:
+        return redirect("photo_list")
+
+    if request.method == "POST":
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect("photo_list")
+    else:
+        form = UserCreationForm()
+    return render(request, "registration/register.html", {"form": form})

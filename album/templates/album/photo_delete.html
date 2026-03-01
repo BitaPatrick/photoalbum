@@ -1,6 +1,12 @@
 <p><a href="/">← Back</a></p>
 <h2>Delete: {{ photo.name }}</h2>
 
+{% if messages %}
+  {% for message in messages %}
+    <p style="color:red;">{{ message }}</p>
+  {% endfor %}
+{% endif %}
+
 <form method="post">
   {% csrf_token %}
   <button type="submit">Yes, delete</button>

@@ -1,5 +1,8 @@
 <p><a href="/">← Back</a></p>
 <h2>{{ photo.name }}</h2>
 <p>{{ photo.uploaded_at|date:"Y-m-d H:i" }}</p>
+{% if user.is_authenticated %}
+  <p><a href="{% url 'photo_delete' photo.id %}">Delete this photo</a></p>
+{% endif %}
 
 <img src="{{ photo.image_url }}" style="max-width: 600px;" />

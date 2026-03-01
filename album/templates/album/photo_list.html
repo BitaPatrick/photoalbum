@@ -1,18 +1,40 @@
 <h1>Photo Album</h1>
 
+{% if user.is_authenticated %}
+  <p>
+    Logged in as <strong>{{ user.username }}</strong>
+    <form method="post" action="{% url 'logout' %}" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit">Logout</button>
+    </form>
+  </p>
+{% else %}
+  <p>
+    <a href="{% url 'login' %}">Login</a> |
+    <a href="{% url 'register' %}">Register</a>
+  </p>
+{% endif %}
+
 <p>
   Sort:
   <a href="/?sort=date">Date</a> |
   <a href="/?sort=name">Name</a>
 </p>
 
-<p><a href="/upload/">Upload new photo</a></p>
+{% if user.is_authenticated %}
+  <p><a href="{% url 'photo_upload' %}">Upload new photo</a></p>
+{% else %}
+  <p><a href="{% url 'login' %}">Login to upload</a></p>
+{% endif %}
 
-<<ul>
+<ul>
   {% for photo in photos %}
     <li>
       <a href="{% url 'photo_detail' photo.id %}">{{ photo.name }}</a>
       — {{ photo.uploaded_at|date:"Y-m-d H:i" }}
+      {% if user.is_authenticated %}
+        | <a href="{% url 'photo_delete' photo.id %}">Delete</a>
+      {% endif %}
     </li>
   {% empty %}
     <li>No photos yet.</li>

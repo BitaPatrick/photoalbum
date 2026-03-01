@@ -6,4 +6,5 @@ urlpatterns = [
     path("upload/", views.photo_upload, name="photo_upload"),
     path("photo/<int:pk>/", views.photo_detail, name="photo_detail"),
     path("photo/<int:pk>/delete/", views.photo_delete, name="photo_delete"),
+    path("accounts/register/", views.register, name="register"),
 ]
