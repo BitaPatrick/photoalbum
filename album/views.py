@@ -35,7 +35,8 @@ def photo_upload(request):
             )
 
             
-            public_url = sb.storage.from_(bucket).get_public_url(filename)
+            public_url_res = sb.storage.from_(bucket).get_public_url(filename)
+            public_url = public_url_res if isinstance(public_url_res, str) else public_url_res.get("publicUrl")
 
             Photo.objects.create(
                 name=form.cleaned_data["name"],
