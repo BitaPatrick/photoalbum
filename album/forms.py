@@ -1,5 +1,10 @@
 from django import forms
+from .models import Photo
 
-class PhotoForm(forms.Form):
-    name = forms.CharField(max_length=200)
-    image = forms.ImageField()
+class PhotoForm(forms.ModelForm):
+    
+    image = forms.ImageField(required=True)
+
+    class Meta:
+        model = Photo
+        fields = ["name"] 
