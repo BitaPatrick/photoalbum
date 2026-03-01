@@ -4,6 +4,11 @@ from .models import Photo
 from .forms import PhotoForm
 from .supabase_client import get_client
 
+import traceback
+from django.http import HttpResponseServerError
+from django.shortcuts import render, redirect, get_object_or_404
+
+
 def photo_list(request):
     sort = request.GET.get("sort", "date")
     if sort == "name":
@@ -16,46 +21,46 @@ def photo_detail(request, pk):
     photo = get_object_or_404(Photo, pk=pk)
     return render(request, "album/photo_detail.html", {"photo": photo})
 
-def photo_upload(request):
+def upload_photo(request):
     if request.method == "POST":
         form = PhotoForm(request.POST, request.FILES)
         if form.is_valid():
-            client = get_client()
-            bucket = os.environ.get("SUPABASE_BUCKET", "photos")
+            try:
+                # mindent ide, még a kliens initet is!
+                sb = get_client()
+                bucket = os.environ.get("SUPABASE_BUCKET", "photos")
 
-            f = form.cleaned_data["image"]
-            ext = os.path.splitext(f.name)[1].lower() or ".jpg"
-            filename = f"{uuid.uuid4()}{ext}"
+                file_obj = request.FILES["image"]
+                file_ext = file_obj.name.split(".")[-1].lower()
+                storage_path = f"{uuid.uuid4()}.{file_ext}"
 
-            # ajánlott: mappába rakni
-            path = f"uploads/{filename}"
+                file_bytes = file_obj.read()
 
-            data = f.read()
-            content_type = getattr(f, "content_type", "application/octet-stream")
+                res = sb.storage.from_(bucket).upload(
+                    storage_path,
+                    file_bytes,
+                    file_options={"content-type": file_obj.content_type},
+                )
 
-            res = client.storage.from_(bucket).upload(
-                path,
-                data,
-                {"content-type": content_type, "upsert": True},
-            )
+                public_url = sb.storage.from_(bucket).get_public_url(storage_path)
 
-            # Ha hibát ad vissza, dobjunk értelmes üzenetet
-            # (a supabase lib néha dict-et ad, néha objektumot – ezért óvatosan)
-            if isinstance(res, dict) and res.get("error"):
-                return render(request, "album/photo_form.html", {"form": form, "error": str(res)})
+                photo = form.save(commit=False)
+                photo.image_url = public_url
+                photo.storage_path = storage_path
+                photo.save()
 
-            public_url = client.storage.from_(bucket).get_public_url(path)
+                return redirect("index")
 
-            Photo.objects.create(
-                name=form.cleaned_data["name"],
-                storage_path=path,
-                image_url=public_url,
-            )
-            return redirect("photo_list")
+            except Exception as e:
+                print("UPLOAD ERROR:", repr(e))
+                print(traceback.format_exc())
+                # ezt is megmutathatod debugra:
+                return render(request, "album/upload.html", {"form": form, "error": str(e)}, status=500)
+
     else:
         form = PhotoForm()
 
-    return render(request, "album/photo_form.html", {"form": form})
+    return render(request, "album/upload.html", {"form": form})
 
 def photo_delete(request, pk):
     photo = get_object_or_404(Photo, pk=pk)
