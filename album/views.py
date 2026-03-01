@@ -6,7 +6,6 @@ from .supabase_client import get_client
 
 import traceback
 from django.http import HttpResponseServerError
-from django.shortcuts import render, redirect, get_object_or_404
 
 
 def photo_list(request):
