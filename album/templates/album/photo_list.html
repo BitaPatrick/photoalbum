@@ -8,12 +8,11 @@
 
 <p><a href="/upload/">Upload new photo</a></p>
 
-<ul>
-  {% for p in photos %}
+<<ul>
+  {% for photo in photos %}
     <li>
-      <a href="/photo/{{ p.id }}/">{{ p.name }}</a>
-      — {{ p.uploaded_at|date:"Y-m-d H:i" }}
-      <a href="/photo/{{ p.id }}/delete/">(delete)</a>
+      <a href="{% url 'photo_detail' photo.id %}">{{ photo.name }}</a>
+      — {{ photo.uploaded_at|date:"Y-m-d H:i" }}
     </li>
   {% empty %}
     <li>No photos yet.</li>
