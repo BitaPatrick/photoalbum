@@ -1,0 +1,127 @@
+import os
+import random
+import re
+from io import BytesIO
+
+from locust import HttpUser, between, task
+
+
+PHOTO_LINK_RE = re.compile(r'href="(/photo/(\\d+)/)"')
+CSRF_RE = re.compile(r'name="csrfmiddlewaretoken" value="([^"]+)"')
+
+
+def _extract_csrf_token(html: str) -> str | None:
+    match = CSRF_RE.search(html)
+    if not match:
+        return None
+    return match.group(1)
+
+
+def _build_tiny_png() -> bytes:
+    # 1x1 PNG file for upload tests
+    return (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0cIDATx\x9cc\xf8\xcf\xc0\x00"
+        b"\x00\x03\x01\x01\x00\x18\xdd\x8d\x18\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+
+
+class PhotoAlbumUser(HttpUser):
+    wait_time = between(0.5, 2)
+
+    def on_start(self) -> None:
+        self.username = os.getenv("LOADTEST_USERNAME")
+        self.password = os.getenv("LOADTEST_PASSWORD")
+        self._maybe_login()
+
+    def _maybe_login(self) -> None:
+        if not self.username or not self.password:
+            return
+
+        response = self.client.get("/accounts/login/")
+        token = _extract_csrf_token(response.text)
+        if not token:
+            return
+
+        self.client.post(
+            "/accounts/login/",
+            data={
+                "username": self.username,
+                "password": self.password,
+                "csrfmiddlewaretoken": token,
+            },
+            headers={"Referer": f"{self.host}/accounts/login/"},
+            name="POST /accounts/login/",
+            allow_redirects=True,
+        )
+
+    def _get_photo_ids(self) -> list[int]:
+        list_response = self.client.get("/", name="GET / (for ids)")
+        return [int(photo_id) for _, photo_id in PHOTO_LINK_RE.findall(list_response.text)]
+
+    @task(4)
+    def list_photos(self) -> None:
+        self.client.get("/", name="GET /")
+
+    @task(2)
+    def list_sorted_by_name(self) -> None:
+        self.client.get("/?sort=name", name="GET /?sort=name")
+
+    @task(2)
+    def list_sorted_by_date(self) -> None:
+        self.client.get("/?sort=date", name="GET /?sort=date")
+
+    @task(2)
+    def open_photo_detail(self) -> None:
+        photo_ids = self._get_photo_ids()
+        if not photo_ids:
+            return
+        photo_id = random.choice(photo_ids)
+        self.client.get(f"/photo/{photo_id}/", name="GET /photo/<id>/")
+
+    @task(1)
+    def upload_photo_if_authenticated(self) -> None:
+        if not self.username or not self.password:
+            return
+
+        upload_page = self.client.get("/upload/", name="GET /upload/")
+        token = _extract_csrf_token(upload_page.text)
+        if not token:
+            return
+
+        file_name = f"loadtest-{random.randint(1000, 9999)}.png"
+        file_content = BytesIO(_build_tiny_png())
+        self.client.post(
+            "/upload/",
+            data={
+                "name": f"LoadTest {random.randint(1000, 9999)}",
+                "csrfmiddlewaretoken": token,
+            },
+            files={"image": (file_name, file_content, "image/png")},
+            headers={"Referer": f"{self.host}/upload/"},
+            name="POST /upload/",
+            allow_redirects=True,
+        )
+
+    @task(1)
+    def delete_photo_if_authenticated(self) -> None:
+        if not self.username or not self.password:
+            return
+
+        photo_ids = self._get_photo_ids()
+        if not photo_ids:
+            return
+
+        photo_id = random.choice(photo_ids)
+        delete_page = self.client.get(f"/photo/{photo_id}/delete/", name="GET /photo/<id>/delete/")
+        token = _extract_csrf_token(delete_page.text)
+        if not token:
+            return
+
+        self.client.post(
+            f"/photo/{photo_id}/delete/",
+            data={"csrfmiddlewaretoken": token},
+            headers={"Referer": f"{self.host}/photo/{photo_id}/delete/"},
+            name="POST /photo/<id>/delete/",
+            allow_redirects=True,
+        )
