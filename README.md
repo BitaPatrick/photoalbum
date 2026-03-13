@@ -1,218 +1,40 @@
-# Fényképalbum (Django + Render + Supabase)
+# Fényképalbum
 
-Ez a repository egy szerveroldali renderelésű (SSR) Django webalkalmazás, amely képek listázását, feltöltését, megnyitását és törlését valósítja meg jogosultságkezeléssel.
+Ez a projekt egy Django alapú fényképalbum alkalmazás, amely Renderen fut, az adatait Supabase Postgresben tárolja, a képfájlokat pedig Supabase Storage-ban kezeli. A felület szerveroldali rendereléssel készül, tehát nincs külön React frontend és külön API backend: ugyanaz a Django alkalmazás szolgálja ki az oldalakat és végzi az adatkezelést.
 
-Élő környezet (Render):
-- https://photoalbum-k6w1.onrender.com
+Az alkalmazás célja egy egyszerű, de teljes fotókezelési folyamat bemutatása: képek listázása, megnyitása, feltöltése és törlése, valamint felhasználói belépés-regisztráció kezelése. A listát név vagy feltöltési dátum szerint lehet rendezni, a feltöltés és a törlés pedig csak bejelentkezett felhasználónak engedélyezett.
 
-## 1. Cél és architektúra
+## Működés röviden
 
-### 1.1 Mi fut hol?
-- Alkalmazás (web szerver): Renderen futó Django + Gunicorn
-- Adatbázis: Supabase Postgres
-- Fájltárolás: Supabase Storage bucket
+Amikor egy felhasználó megnyitja az oldalt, a böngésző a Renderen futó Django alkalmazáshoz küld kérést. A Django lekéri a képek metaadatait a PostgreSQL adatbázisból, majd HTML oldalt renderel vissza. Feltöltéskor a képfájl először Supabase Storage-ba kerül, ezután az adatbázisba mentésre kerül a kép neve, feltöltési ideje, a storage útvonal és a megjelenítéshez használt URL. Törléskor ugyanez fordítva történik: előbb a storage objektum törlődik, majd az adatbázis rekord.
 
-### 1.2 Kérések útja
-- Böngésző -> Django (HTTP)
-- Django -> Supabase Postgres (metaadat lekérdezés/mentés)
-- Django -> Supabase Storage (kép feltöltés/törlés)
-- Django -> Böngésző (HTML válasz)
+## Fő technikai elemek
 
-### 1.3 Monolit vagy külön frontend-backend?
-- Ez egy Django monolit: a frontend (Django template-ek) és backend logika ugyanabban az alkalmazásban van.
-- Nincs külön React frontend és külön REST API szolgáltatás.
+A projekt központi beállításait a `config` csomag tartalmazza (`settings.py`, `urls.py`, `wsgi.py`). Az alkalmazáslogika az `album` appban van: a `models.py` írja le a `Photo` modellt, a `views.py` kezeli a listázást, részletoldalt, feltöltést, törlést és regisztrációt, a `templates` mappában találhatók a HTML oldalak, a `static` mappában pedig a stílusok.
 
-## 2. Funkciók
+A bejelentkezés és kijelentkezés Django auth alapon működik. A regisztráció saját nézettel történik (`/accounts/register/`), a kijelentkezés külön POST végponttal van kezelve, hogy stabil legyen production környezetben is.
 
-- Képek listázása
-- Rendezés név szerint és dátum szerint
-- Kép részletes megnyitása
-- Kép feltöltése (csak belépve)
-- Kép törlése (csak belépve)
-- Regisztráció, belépés, kilépés
+## Környezeti változók
 
-## 3. Követelmény megfelelés
+A futáshoz szükség van a Django titkos kulcsára és a Supabase kapcsolati adatokra. Production környezetben a `DJANGO_DEBUG` értéke `False`.
 
-### 3.1 2. beadás
-- Külön adatbázis-szerver: Supabase Postgres
-- Külön storage: Supabase Storage
-- Felhasználókezelés és jogosultság: Django auth + `@login_required`
-- Név max 40 karakter: `Photo.name(max_length=40)`
-- Feltöltési dátum: `uploaded_at`
-- Lista név/dátum rendezéssel: `/?sort=name`, `/?sort=date`
-
-### 3.2 3. beadás előkészítés
-- Dockeres futtatás hozzáadva (`Dockerfile`, `scripts/start.sh`)
-- Felhőből indítható terhelésteszt workflow (`.github/workflows/loadtest.yml`)
-- Locust szkript fő funkciókra (`loadtest/locustfile.py`)
-
-## 4. Projektstruktúra
-
-- `config/` - Django projektkonfiguráció (`settings.py`, `urls.py`, `wsgi.py`)
-- `album/` - alkalmazáslogika
-- `album/models.py` - `Photo` modell
-- `album/views.py` - lista/részletek/feltöltés/törlés/regisztráció
-- `album/urls.py` - app URL routing
-- `album/templates/` - UI oldalak
-- `album/static/album/style.css` - stílus
-- `album/supabase_client.py` - Supabase kliens létrehozása
-- `loadtest/` - Locust terhelésteszt
-- `scripts/start.sh` - konténer startup
-
-## 5. Adatmodell
-
-`Photo` mezők:
-- `name` (`CharField(40)`)
-- `uploaded_at` (`DateTimeField(auto_now_add=True)`)
-- `storage_path` (`CharField(500)`) - bucket objektum útvonala
-- `image_url` (`URLField(1000)`) - megjelenítéshez használt URL
-
-## 6. URL-ek és működés
-
-- `GET /` - listázás (default: dátum szerint csökkenő)
-- `GET /?sort=name` - név szerinti rendezés
-- `GET /?sort=date` - dátum szerinti rendezés
-- `GET /photo/<id>/` - részletes oldal
-- `GET/POST /upload/` - feltöltés (auth kötelező)
-- `GET/POST /photo/<id>/delete/` - törlés (auth kötelező)
-- `GET/POST /accounts/register/` - regisztráció
-- `GET/POST /accounts/login/` - belépés (Django beépített)
-- `POST /accounts/logout/` - kilépés (Django beépített)
-
-## 7. Környezeti változók
-
-Kötelező (production):
 - `DJANGO_SECRET_KEY`
-- `DJANGO_DEBUG=False`
+- `DJANGO_DEBUG`
 - `DATABASE_URL`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_BUCKET`
 
-Ajánlott:
-- `PYTHON_VERSION`
-- `WEB_CONCURRENCY` (konténeres futásnál Gunicorn workers)
+Ha `DATABASE_URL` nincs megadva, lokálisan SQLite fallback működik.
 
-## 8. Lokális futtatás (nem Docker)
+## Futtatás
 
-1. Virtuális környezet és csomagok:
-- `python -m venv .venv`
-- `source .venv/bin/activate`
-- `pip install -r requirements.txt`
+Lokális futtatásnál virtuális környezetben a `requirements.txt` csomagjai telepítendők, majd migráció után indítható a Django szerver. Renderen jelenleg Gunicornnal fut a projekt.
 
-2. Migráció:
-- `python manage.py migrate`
+A repository tartalmaz Docker alapú futtatást is (`Dockerfile`, `scripts/start.sh`), így a projekt konténerben is elindítható. A start script a statikus fájlgyűjtést, migrációt és a Gunicorn indítását automatizálja.
 
-3. Indítás:
-- `python manage.py runserver`
+## Terhelésteszt
 
-4. Böngésző:
-- `http://127.0.0.1:8000`
+A cloud alapú terhelésméréshez Locust forgatókönyv került a projektbe (`loadtest/locustfile.py`), valamint GitHub Actions workflow (`.github/workflows/loadtest.yml`). A teszt lefedi a fő felhasználói útvonalakat: listázás, rendezés, részletoldal, belépés, feltöltés és törlés.
 
-Megjegyzés:
-- Ha nincs `DATABASE_URL`, lokálisan SQLite fallback működik (`db.sqlite3`).
-
-## 9. Konténeres futtatás (Docker)
-
-Build:
-- `docker build -t photoalbum:latest .`
-
-Run:
-- `docker run --rm -p 8000:8000 --env-file .env photoalbum:latest`
-
-A konténer induláskor:
-- `collectstatic`
-- `migrate`
-- `gunicorn config.wsgi:application`
-
-## 10. Render deploy
-
-### 10.1 Nem konténeres (jelenlegi)
-Build command:
-- `pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate`
-
-Start command:
-- `gunicorn config.wsgi:application`
-
-### 10.2 Konténeres opció
-- Service Docker deployként is futtatható a repository-ból a `Dockerfile` alapján.
-
-## 11. Automatizált tesztelés (funkcióellenőrzés)
-
-A `album/tests.py` lefedi:
-- listázás és rendezés
-- részletes oldal
-- auth védelem upload/delete útvonalakon
-- regisztráció
-- upload flow (Supabase kliens mockolva)
-- delete flow (Supabase kliens mockolva)
-
-Futtatás:
-- `.venv/bin/python manage.py test -v 2`
-
-Elvárt eredmény:
-- 8/8 teszt sikeres
-
-## 12. Cloud terhelésteszt (Locust)
-
-Fájlok:
-- `loadtest/locustfile.py`
-- `.github/workflows/loadtest.yml`
-
-Locust forgatókönyv lefedi:
-- listaoldal
-- rendezés név/dátum szerint
-- részletek megnyitása
-- login
-- feltöltés
-- törlés
-
-### 12.1 GitHub Actions beállítás
-Repo secrets:
-- `LOADTEST_HOST` (pl. `https://photoalbum-k6w1.onrender.com`)
-- `LOADTEST_USERNAME`
-- `LOADTEST_PASSWORD`
-
-Workflow indítás:
-- Actions -> `Cloud Load Test` -> `Run workflow`
-
-Artifactok:
-- `loadtest_report.html`
-- `loadtest_report_stats.csv`
-- `loadtest_report_failures.csv`
-- `loadtest_report_exceptions.csv`
-
-## 13. Autoscaling (Render)
-
-Javasolt labor setup:
-- Min instances: `1`
-- Max instances: `3`
-- CPU target: kb. `60%`
-- Kisebb instance típus a teszthez (könnyebben triggerelhető scale-up)
-
-Bizonyítékok:
-- autoscaling beállítás screenshot
-- Render event log screenshot (scale up + scale down)
-- Locust riportok
-
-## 14. Beadási checklist
-
-- GitHub repository link
-- élő Render URL
-- rövid architektúra leírás (Render + Supabase DB + Supabase Storage)
-- funkciók bemutatása (upload/list/detail/delete/auth)
-- terhelésteszt konfiguráció és eredmények
-- autoscaling bizonyítékok
-- rövid tanulságok
-
-## 15. Gyakori hibák
-
-- `NoReverseMatch: register`:
-  - oka: hiányzó regisztráció route
-  - jelenlegi állapot: javítva (`/accounts/register/`)
-
-- Upload 500:
-  - oka: hiányzó vagy rossz `SUPABASE_*` env
-
-- Productionban debug:
-  - `DJANGO_DEBUG=False` kötelező
+A workflow futása után HTML és CSV riportok készülnek artifactként. Ezek alapján ellenőrizhető a válaszidő, hibaarány és a rendszer viselkedése terhelés alatt.
