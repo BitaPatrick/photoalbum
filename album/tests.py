@@ -56,6 +56,12 @@ class PhotoAlbumTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/accounts/login/", response.url)
 
+    def test_logout_post_redirects_to_home(self):
+        self.client.login(username="tester", password="secret123")
+        response = self.client.post(reverse("logout"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("photo_list"))
+
     def test_register_page_and_post(self):
         response_get = self.client.get(reverse("register"))
         self.assertEqual(response_get.status_code, 200)
