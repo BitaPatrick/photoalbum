@@ -6,6 +6,8 @@ Az alkalmazás publikus címe: https://photoalbum-k6w1.onrender.com
 
 Az alkalmazás célja egy egyszerű, de teljes fotókezelési folyamat bemutatása: képek listázása, megnyitása, feltöltése és törlése, valamint felhasználói belépés-regisztráció kezelése. A listát név vagy feltöltési dátum szerint lehet rendezni, a feltöltés és a törlés pedig csak bejelentkezett felhasználónak engedélyezett.
 
+Bejelentkezés nélkül a felhasználó a képek listáját és részletoldalát tudja megnyitni. Bejelentkezve ezen felül új képet tud feltölteni, meglévő képet tud törölni, illetve ki tud jelentkezni.
+
 ## Működés röviden
 
 Amikor egy felhasználó megnyitja az oldalt, a böngésző a Renderen futó Django alkalmazáshoz küld kérést. A Django lekéri a képek metaadatait a PostgreSQL adatbázisból, majd HTML oldalt renderel vissza. Feltöltéskor a képfájl először Supabase Storage-ba kerül, ezután az adatbázisba mentésre kerül a kép neve, feltöltési ideje, a storage útvonal és a megjelenítéshez használt URL. Törléskor ugyanez fordítva történik: előbb a storage objektum törlődik, majd az adatbázis rekord.
