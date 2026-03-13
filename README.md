@@ -2,6 +2,8 @@
 
 Ez a projekt egy Django alapú fényképalbum alkalmazás, amely Renderen fut, az adatait Supabase Postgresben tárolja, a képfájlokat pedig Supabase Storage-ban kezeli. A felület szerveroldali rendereléssel készül, tehát nincs külön React frontend és külön API backend: ugyanaz a Django alkalmazás szolgálja ki az oldalakat és végzi az adatkezelést.
 
+Az alkalmazás publikus címe: https://photoalbum-k6w1.onrender.com
+
 Az alkalmazás célja egy egyszerű, de teljes fotókezelési folyamat bemutatása: képek listázása, megnyitása, feltöltése és törlése, valamint felhasználói belépés-regisztráció kezelése. A listát név vagy feltöltési dátum szerint lehet rendezni, a feltöltés és a törlés pedig csak bejelentkezett felhasználónak engedélyezett.
 
 ## Működés röviden
@@ -38,3 +40,9 @@ A repository tartalmaz Docker alapú futtatást is (`Dockerfile`, `scripts/start
 A cloud alapú terhelésméréshez Locust forgatókönyv került a projektbe (`loadtest/locustfile.py`), valamint GitHub Actions workflow (`.github/workflows/loadtest.yml`). A teszt lefedi a fő felhasználói útvonalakat: listázás, rendezés, részletoldal, belépés, feltöltés és törlés.
 
 A workflow futása után HTML és CSV riportok készülnek artifactként. Ezek alapján ellenőrizhető a válaszidő, hibaarány és a rendszer viselkedése terhelés alatt.
+
+Az aktuális mérésben a rendszer stabilan működött (hibaarány 0), de a válaszidők magasak voltak. A teszt Locust-tal készült, és az eredmények alapján a működés rendben van, viszont a latency a futtatási környezet (Render free instance) korlátai miatt magas lehet.
+
+Az aktuális futásban 813 kérés ment le 0 hibával.
+
+Az eredmények a `loadtest_report.html`, `loadtest_report_stats.csv`, `loadtest_report_failures.csv` és `loadtest_report_exceptions.csv` fájlokban érhetők el.
