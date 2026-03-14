@@ -1,50 +1,57 @@
 # Fényképalbum
 
-Ez a projekt egy Django alapú fényképalbum alkalmazás, amely Renderen fut, az adatait Supabase Postgresben tárolja, a képfájlokat pedig Supabase Storage-ban kezeli. A felület szerveroldali rendereléssel készül, tehát nincs külön React frontend és külön API backend: ugyanaz a Django alkalmazás szolgálja ki az oldalakat és végzi az adatkezelést.
+Publikus elérés: https://photoalbum-k6w1.onrender.com
 
-Az alkalmazás publikus címe: https://photoalbum-k6w1.onrender.com
+Ez a projekt egy egyszerű, de teljesen működő fényképalbum alkalmazás Django alapon. A cél az volt, hogy a laborfeladat követelményeit stabilan teljesítse: lehessen képeket listázni, rendezni, megnyitni, feltölteni és törölni, illetve legyen rendes felhasználókezelés (regisztráció, belépés, kilépés), jogosultságokkal.
 
-Az alkalmazás célja egy egyszerű, de teljes fotókezelési folyamat bemutatása: képek listázása, megnyitása, feltöltése és törlése, valamint felhasználói belépés-regisztráció kezelése. A listát név vagy feltöltési dátum szerint lehet rendezni, a feltöltés és a törlés pedig csak bejelentkezett felhasználónak engedélyezett.
+A futtatás Renderen történik, az adatok Supabase Postgresben vannak, a fájlok pedig Supabase Storage-ban. Ezt azért választottam, mert így a webalkalmazás, az adatbázis és a fájltárolás tisztán szét van választva, és production környezetben is ugyanaz a működés marad, mint amit a feladat kér.
 
-Bejelentkezés nélkül a felhasználó a képek listáját és részletoldalát tudja megnyitni. Bejelentkezve ezen felül új képet tud feltölteni, meglévő képet tud törölni, illetve ki tud jelentkezni.
+## Mit tud jelenleg az alkalmazás?
 
-## Működés röviden
+A képek listája és részletoldala bejelentkezés nélkül is elérhető. Bejelentkezett felhasználó ezen felül képet tud feltölteni és törölni. A képek név szerint vagy feltöltési dátum szerint rendezhetők. Minden képnél tárolva van a név, a feltöltési idő, valamint a storage útvonal és a megjelenítési URL.
 
-Amikor egy felhasználó megnyitja az oldalt, a böngésző a Renderen futó Django alkalmazáshoz küld kérést. A Django lekéri a képek metaadatait a PostgreSQL adatbázisból, majd HTML oldalt renderel vissza. Feltöltéskor a képfájl először Supabase Storage-ba kerül, ezután az adatbázisba mentésre kerül a kép neve, feltöltési ideje, a storage útvonal és a megjelenítéshez használt URL. Törléskor ugyanez fordítva történik: előbb a storage objektum törlődik, majd az adatbázis rekord.
+## Funkcionális feltételek teljesülése
 
-## Fő technikai elemek
+A feladatban megadott fő funkcionális pontok megvalósultak: a képek feltöltése és törlése működik, minden képhez név és feltöltési dátum tartozik (a név hossza korlátozott), a lista név és dátum szerint rendezhető, a listából kattintva elérhető a részletes képnézet, továbbá a felhasználókezelés (regisztráció, belépés, kilépés) is működik. Jogosultság oldalon a feltöltés és törlés csak bejelentkezett felhasználónak engedélyezett.
 
-A projekt központi beállításait a `config` csomag tartalmazza (`settings.py`, `urls.py`, `wsgi.py`). Az alkalmazáslogika az `album` appban van: a `models.py` írja le a `Photo` modellt, a `views.py` kezeli a listázást, részletoldalt, feltöltést, törlést és regisztrációt, a `templates` mappában találhatók a HTML oldalak, a `static` mappában pedig a stílusok.
+## Miért ezt a megoldást választottam?
 
-A bejelentkezés és kijelentkezés Django auth alapon működik. A regisztráció saját nézettel történik (`/accounts/register/`), a kijelentkezés külön POST végponttal van kezelve, hogy stabil legyen production környezetben is.
+A Django választásának fő oka az volt, hogy a laborfeladat funkcióit gyorsan és megbízhatóan le tudjam fedni egyetlen, jól áttekinthető kódbázissal. A felületet a Django template-ek szolgálják ki, ezért nem kell külön kliensoldali alkalmazást és külön API-t karbantartani ehhez a feladathoz.
+
+A Render mellett szólt, hogy egyszerű a deploy, automatikus a GitHub integráció, és a futtatási környezet könnyen reprodukálható. A Supabase Postgres + Storage páros azért lett jó választás, mert a képek bináris fájlként kerülnek tárolásra, miközben az alkalmazásadatok relációs adatbázisban maradnak.
+
+## Működés rövid folyamata
+
+Oldalmegnyitáskor a kérés a Renderen futó Django alkalmazáshoz megy, amely lekéri a szükséges rekordokat a PostgreSQL adatbázisból, és HTML választ küld vissza. Feltöltéskor a kép először Storage-ba kerül, majd az adatbázisba mentésre kerül a metaadat. Törléskor előbb a storage objektum törlődik, utána a hozzá tartozó adatbázis rekord.
+
+## Projekt felépítése
+
+- `config/`: projektbeállítások (`settings.py`, `urls.py`, `wsgi.py`)
+- `album/`: alkalmazáslogika (modellek, nézetek, űrlapok)
+- `album/templates/`: oldalsablonok
+- `album/static/`: stílus
+- `loadtest/`: Locust terhelésteszt fájlok
 
 ## Környezeti változók
 
-A futáshoz szükség van a Django titkos kulcsára és a Supabase kapcsolati adatokra. Production környezetben a `DJANGO_DEBUG` értéke `False`.
+A futáshoz ezek szükségesek: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET`.
 
-- `DJANGO_SECRET_KEY`
-- `DJANGO_DEBUG`
-- `DATABASE_URL`
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_BUCKET`
-
-Ha `DATABASE_URL` nincs megadva, lokálisan SQLite fallback működik.
+Ha nincs `DATABASE_URL`, akkor lokálisan SQLite fallback működik.
 
 ## Futtatás
 
-Lokális futtatásnál virtuális környezetben a `requirements.txt` csomagjai telepítendők, majd migráció után indítható a Django szerver. Renderen jelenleg Gunicornnal fut a projekt.
+Lokálisan a `requirements.txt` telepítése után migrációval indítható (`manage.py migrate`, majd `runserver`).
 
-A repository tartalmaz Docker alapú futtatást is (`Dockerfile`, `scripts/start.sh`), így a projekt konténerben is elindítható. A start script a statikus fájlgyűjtést, migrációt és a Gunicorn indítását automatizálja.
+A repository tartalmaz Docker futtatást is (`Dockerfile`, `scripts/start.sh`), ahol az indításkor automatikusan lefut a `collectstatic`, a `migrate`, majd a Gunicorn szerver indul.
 
 ## Terhelésteszt
 
-A cloud alapú terhelésméréshez Locust forgatókönyv került a projektbe (`loadtest/locustfile.py`), valamint GitHub Actions workflow (`.github/workflows/loadtest.yml`). A teszt lefedi a fő felhasználói útvonalakat: listázás, rendezés, részletoldal, belépés, feltöltés és törlés.
+A terhelésteszt Locust-tal készült (`loadtest/locustfile.py`), a futtatást GitHub Actions workflow végzi (`.github/workflows/loadtest.yml`), így a mérés felhőből reprodukálható.
 
-A workflow futása után HTML és CSV riportok készülnek artifactként. Ezek alapján ellenőrizhető a válaszidő, hibaarány és a rendszer viselkedése terhelés alatt.
+Az aktuális futásban 813 kérés ment le 0 hibával, tehát a rendszer stabil volt. A válaszidők viszont magasak lettek, ami a Render free instance korlátai mellett várható.
 
-Az aktuális mérésben a rendszer stabilan működött (hibaarány 0), de a válaszidők magasak voltak. A teszt Locust-tal készült, és az eredmények alapján a működés rendben van, viszont a latency a futtatási környezet (Render free instance) korlátai miatt magas lehet.
-
-Az aktuális futásban 813 kérés ment le 0 hibával.
-
-Az eredmények a `loadtest_report.html`, `loadtest_report_stats.csv`, `loadtest_report_failures.csv` és `loadtest_report_exceptions.csv` fájlokban érhetők el.
+Az eredmények itt vannak a repóban:
+- `loadtest/results/loadtest_report.html`
+- `loadtest/results/loadtest_report_stats.csv`
+- `loadtest/results/loadtest_report_failures.csv`
+- `loadtest/results/loadtest_report_exceptions.csv`
