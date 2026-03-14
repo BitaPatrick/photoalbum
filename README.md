@@ -32,6 +32,22 @@ Oldalmegnyitáskor a kérés a Renderen futó Django alkalmazáshoz megy, amely 
 - `album/static/`: stílus
 - `loadtest/`: Locust terhelésteszt fájlok
 
+## Fontos fájlok röviden
+
+- `manage.py`: Django parancsok futtatása (migrate, runserver, test)
+- `config/settings.py`: környezeti változók, DB kapcsolat, static/media, auth redirectek
+- `config/urls.py`: fő URL belépési pont (`album` app + auth route-ok)
+- `album/models.py`: `Photo` modell (név, dátum, storage_path, image_url)
+- `album/views.py`: fő működés (lista, részletek, feltöltés, törlés, regisztráció, logout)
+- `album/urls.py`: app endpointok
+- `album/forms.py`: feltöltési űrlap
+- `album/supabase_client.py`: Supabase kliens inicializálása
+- `album/templates/base.html`: közös layout és navigáció
+- `album/tests.py`: funkcionális regressziós tesztek
+- `Dockerfile`, `scripts/start.sh`: konténeres indítás
+- `.github/workflows/loadtest.yml`: felhőből futó Locust workflow
+- `loadtest/locustfile.py`: terheléses user flow leírása
+
 ## Környezeti változók
 
 A futáshoz ezek szükségesek: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET`.
