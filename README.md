@@ -1,10 +1,12 @@
 # Fényképalbum
 
-Publikus elérés: https://photoalbum-k6w1.onrender.com
+Publikus elérés:
+- Render (korábbi): https://photoalbum-k6w1.onrender.com
+- Google Cloud Run (jelenlegi tesztkörnyezet): https://photoalbum-595666137785.europe-west1.run.app
 
 Ez a projekt egy egyszerű, de teljesen működő fényképalbum alkalmazás Django alapon. A cél az volt, hogy a laborfeladat követelményeit stabilan teljesítse: lehessen képeket listázni, rendezni, megnyitni, feltölteni és törölni, illetve legyen rendes felhasználókezelés (regisztráció, belépés, kilépés), jogosultságokkal.
 
-A futtatás Renderen történik, az adatok Supabase Postgresben vannak, a fájlok pedig Supabase Storage-ban. Ezt azért választottam, mert így a webalkalmazás, az adatbázis és a fájltárolás tisztán szét van választva, és production környezetben is ugyanaz a működés marad, mint amit a feladat kér.
+A projektet eredetileg Renderen futtattam, az adatok Supabase Postgresben vannak, a fájlok pedig Supabase Storage-ban. A terhelésteszthez később áttettem Google Cloud Runra, mert ott az ingyenes csomagban is használható az automatikus skálázás, így a mérés jobban meg tudja mutatni a rendszer valódi viselkedését.
 
 ## Mit tud jelenleg az alkalmazás?
 
@@ -18,11 +20,11 @@ A feladatban megadott fő funkcionális pontok megvalósultak: a képek feltölt
 
 A Django választásának fő oka az volt, hogy a laborfeladat funkcióit gyorsan és megbízhatóan le tudjam fedni egyetlen, jól áttekinthető kódbázissal. A felületet a Django template-ek szolgálják ki, ezért nem kell külön kliensoldali alkalmazást és külön API-t karbantartani ehhez a feladathoz.
 
-A Render mellett szólt, hogy egyszerű a deploy, automatikus a GitHub integráció, és a futtatási környezet könnyen reprodukálható. A Supabase Postgres + Storage páros azért lett jó választás, mert a képek bináris fájlként kerülnek tárolásra, miközben az alkalmazásadatok relációs adatbázisban maradnak.
+A Render mellett szólt, hogy egyszerű a deploy és automatikus a GitHub integráció. A Google Cloud Run mellett pedig az, hogy könnyebb skálázódó terheléstesztet futtatni. A Supabase Postgres + Storage páros azért lett jó választás, mert a képek bináris fájlként kerülnek tárolásra, miközben az alkalmazásadatok relációs adatbázisban maradnak.
 
 ## Működés rövid folyamata
 
-Oldalmegnyitáskor a kérés a Renderen futó Django alkalmazáshoz megy, amely lekéri a szükséges rekordokat a PostgreSQL adatbázisból, és HTML választ küld vissza. Feltöltéskor a kép először Storage-ba kerül, majd az adatbázisba mentésre kerül a metaadat. Törléskor előbb a storage objektum törlődik, utána a hozzá tartozó adatbázis rekord.
+Oldalmegnyitáskor a kérés a futó Django szolgáltatáshoz megy (Renderen vagy Cloud Runon), amely lekéri a szükséges rekordokat a PostgreSQL adatbázisból, és HTML választ küld vissza. Feltöltéskor a kép először Storage-ba kerül, majd az adatbázisba mentésre kerül a metaadat. Törléskor előbb a storage objektum törlődik, utána a hozzá tartozó adatbázis rekord.
 
 ## Projekt felépítése
 
@@ -64,7 +66,7 @@ A repository tartalmaz Docker futtatást is (`Dockerfile`, `scripts/start.sh`), 
 
 A terhelésteszt Locust-tal készült (`loadtest/locustfile.py`), a futtatást GitHub Actions workflow végzi (`.github/workflows/loadtest.yml`), így a mérés felhőből reprodukálható.
 
-Az aktuális futásban 813 kérés ment le 0 hibával, tehát a rendszer stabil volt. A válaszidők viszont magasak lettek, ami a Render free instance korlátai mellett várható.
+Első körben Render free környezetben futott a teszt, ott 0 hibával ment ugyan, de a válaszidők magasak voltak. Emiatt a mérést áttettem Google Cloud Runra. A Cloud Run mérésben 14 327 kérés ment le 0 hibával, az átlag válaszidő kb. 173 ms lett, a medián 140 ms, a P95 kb. 190 ms. Ez alapján a rendszer funkcionálisan stabil, és a válaszidő is reális tartományban maradt terhelés alatt.
 
 Az eredmények itt vannak a repóban:
 - `loadtest/results/loadtest_report.html`
