@@ -6,7 +6,7 @@ from io import BytesIO
 from locust import HttpUser, between, task
 
 
-PHOTO_LINK_RE = re.compile(r'href="(/photo/(\\d+)/)"')
+PHOTO_LINK_RE = re.compile(r'href="(/photo/(\d+)/)"')
 CSRF_RE = re.compile(r'name="csrfmiddlewaretoken" value="([^"]+)"')
 
 
@@ -27,11 +27,12 @@ def _build_tiny_png() -> bytes:
 
 
 class PhotoAlbumUser(HttpUser):
-    wait_time = between(0.5, 2)
+    wait_time = between(0.2, 1.0)
 
     def on_start(self) -> None:
         self.username = os.getenv("LOADTEST_USERNAME")
         self.password = os.getenv("LOADTEST_PASSWORD")
+        self.is_authenticated = False
         self._maybe_login()
 
     def _maybe_login(self) -> None:
@@ -43,7 +44,7 @@ class PhotoAlbumUser(HttpUser):
         if not token:
             return
 
-        self.client.post(
+        login_response = self.client.post(
             "/accounts/login/",
             data={
                 "username": self.username,
@@ -54,12 +55,13 @@ class PhotoAlbumUser(HttpUser):
             name="POST /accounts/login/",
             allow_redirects=True,
         )
+        self.is_authenticated = login_response.status_code == 200
 
     def _get_photo_ids(self) -> list[int]:
         list_response = self.client.get("/", name="GET / (for ids)")
         return [int(photo_id) for _, photo_id in PHOTO_LINK_RE.findall(list_response.text)]
 
-    @task(4)
+    @task(3)
     def list_photos(self) -> None:
         self.client.get("/", name="GET /")
 
@@ -79,9 +81,9 @@ class PhotoAlbumUser(HttpUser):
         photo_id = random.choice(photo_ids)
         self.client.get(f"/photo/{photo_id}/", name="GET /photo/<id>/")
 
-    @task(1)
+    @task(3)
     def upload_photo_if_authenticated(self) -> None:
-        if not self.username or not self.password:
+        if not self.is_authenticated:
             return
 
         upload_page = self.client.get("/upload/", name="GET /upload/")
@@ -103,9 +105,9 @@ class PhotoAlbumUser(HttpUser):
             allow_redirects=True,
         )
 
-    @task(1)
+    @task(3)
     def delete_photo_if_authenticated(self) -> None:
-        if not self.username or not self.password:
+        if not self.is_authenticated:
             return
 
         photo_ids = self._get_photo_ids()
