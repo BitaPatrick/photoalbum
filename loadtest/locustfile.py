@@ -1,12 +1,14 @@
 import os
 import random
 import re
+import time
 from io import BytesIO
 
 from locust import HttpUser, between, task
 
 
 PHOTO_ID_RE = re.compile(r'href=[\'"](?:https?://[^/]+)?/photo/(\d+)/[\'"]')
+PHOTO_TITLE_LINK_RE = re.compile(r'<a href="/photo/(\d+)/">([^<]+)</a>')
 CSRF_RE = re.compile(r'name="csrfmiddlewaretoken" value="([^"]+)"')
 
 
@@ -39,27 +41,39 @@ class PhotoAlbumUser(HttpUser):
         if not self.username or not self.password:
             return
 
-        response = self.client.get("/accounts/login/")
-        token = _extract_csrf_token(response.text)
-        if not token:
-            return
+        for _ in range(3):
+            response = self.client.get("/accounts/login/")
+            token = _extract_csrf_token(response.text)
+            if not token:
+                time.sleep(0.5)
+                continue
 
-        login_response = self.client.post(
-            "/accounts/login/",
-            data={
-                "username": self.username,
-                "password": self.password,
-                "csrfmiddlewaretoken": token,
-            },
-            headers={"Referer": f"{self.host}/accounts/login/"},
-            name="POST /accounts/login/",
-            allow_redirects=True,
-        )
-        self.is_authenticated = login_response.status_code == 200
+            login_response = self.client.post(
+                "/accounts/login/",
+                data={
+                    "username": self.username,
+                    "password": self.password,
+                    "csrfmiddlewaretoken": token,
+                },
+                headers={"Referer": f"{self.host}/accounts/login/"},
+                name="POST /accounts/login/",
+                allow_redirects=True,
+            )
+            self.is_authenticated = login_response.status_code == 200
+            if self.is_authenticated:
+                return
+            time.sleep(0.5)
 
     def _get_photo_ids(self) -> list[int]:
         list_response = self.client.get("/", name="GET / (for ids)")
         return [int(photo_id) for photo_id in PHOTO_ID_RE.findall(list_response.text)]
+
+    def _get_photo_id_by_name(self, photo_name: str) -> int | None:
+        list_response = self.client.get("/", name="GET / (for cycle ids)")
+        for photo_id, title in PHOTO_TITLE_LINK_RE.findall(list_response.text):
+            if title.strip() == photo_name:
+                return int(photo_id)
+        return None
 
     @task(3)
     def list_photos(self) -> None:
@@ -73,7 +87,7 @@ class PhotoAlbumUser(HttpUser):
     def list_sorted_by_date(self) -> None:
         self.client.get("/?sort=date", name="GET /?sort=date")
 
-    @task(2)
+    @task(1)
     def open_photo_detail(self) -> None:
         photo_ids = self._get_photo_ids()
         if not photo_ids:
@@ -105,7 +119,7 @@ class PhotoAlbumUser(HttpUser):
             allow_redirects=True,
         )
 
-    @task(3)
+    @task(1)
     def delete_photo_if_authenticated(self) -> None:
         if not self.is_authenticated:
             return
@@ -113,7 +127,6 @@ class PhotoAlbumUser(HttpUser):
         photo_ids = self._get_photo_ids()
         if not photo_ids:
             return
-
         photo_id = random.choice(photo_ids)
         delete_page = self.client.get(f"/photo/{photo_id}/delete/", name="GET /photo/<id>/delete/")
         token = _extract_csrf_token(delete_page.text)
@@ -141,10 +154,11 @@ class PhotoAlbumUser(HttpUser):
 
         file_name = f"cycle-{random.randint(1000, 9999)}.png"
         file_content = BytesIO(_build_tiny_png())
+        photo_name = f"Cycle {random.randint(100000, 999999)}"
         self.client.post(
             "/upload/",
             data={
-                "name": f"Cycle {random.randint(1000, 9999)}",
+                "name": photo_name,
                 "csrfmiddlewaretoken": token,
             },
             files={"image": (file_name, file_content, "image/png")},
@@ -153,11 +167,10 @@ class PhotoAlbumUser(HttpUser):
             allow_redirects=True,
         )
 
-        photo_ids = self._get_photo_ids()
-        if not photo_ids:
+        photo_id = self._get_photo_id_by_name(photo_name)
+        if not photo_id:
             return
 
-        photo_id = max(photo_ids)
         self.client.get(f"/photo/{photo_id}/", name="GET /photo/<id>/ (cycle)")
         delete_page = self.client.get(
             f"/photo/{photo_id}/delete/",
