@@ -6,7 +6,7 @@ from io import BytesIO
 from locust import HttpUser, between, task
 
 
-PHOTO_LINK_RE = re.compile(r'href="(/photo/(\d+)/)"')
+PHOTO_ID_RE = re.compile(r'href=[\'"](?:https?://[^/]+)?/photo/(\d+)/[\'"]')
 CSRF_RE = re.compile(r'name="csrfmiddlewaretoken" value="([^"]+)"')
 
 
@@ -59,7 +59,7 @@ class PhotoAlbumUser(HttpUser):
 
     def _get_photo_ids(self) -> list[int]:
         list_response = self.client.get("/", name="GET / (for ids)")
-        return [int(photo_id) for _, photo_id in PHOTO_LINK_RE.findall(list_response.text)]
+        return [int(photo_id) for photo_id in PHOTO_ID_RE.findall(list_response.text)]
 
     @task(3)
     def list_photos(self) -> None:
@@ -125,5 +125,52 @@ class PhotoAlbumUser(HttpUser):
             data={"csrfmiddlewaretoken": token},
             headers={"Referer": f"{self.host}/photo/{photo_id}/delete/"},
             name="POST /photo/<id>/delete/",
+            allow_redirects=True,
+        )
+
+    @task(2)
+    def upload_then_delete_cycle(self) -> None:
+        """Ensure delete/detail endpoints are always exercised in each run."""
+        if not self.is_authenticated:
+            return
+
+        upload_page = self.client.get("/upload/", name="GET /upload/ (cycle)")
+        token = _extract_csrf_token(upload_page.text)
+        if not token:
+            return
+
+        file_name = f"cycle-{random.randint(1000, 9999)}.png"
+        file_content = BytesIO(_build_tiny_png())
+        self.client.post(
+            "/upload/",
+            data={
+                "name": f"Cycle {random.randint(1000, 9999)}",
+                "csrfmiddlewaretoken": token,
+            },
+            files={"image": (file_name, file_content, "image/png")},
+            headers={"Referer": f"{self.host}/upload/"},
+            name="POST /upload/ (cycle)",
+            allow_redirects=True,
+        )
+
+        photo_ids = self._get_photo_ids()
+        if not photo_ids:
+            return
+
+        photo_id = max(photo_ids)
+        self.client.get(f"/photo/{photo_id}/", name="GET /photo/<id>/ (cycle)")
+        delete_page = self.client.get(
+            f"/photo/{photo_id}/delete/",
+            name="GET /photo/<id>/delete/ (cycle)",
+        )
+        delete_token = _extract_csrf_token(delete_page.text)
+        if not delete_token:
+            return
+
+        self.client.post(
+            f"/photo/{photo_id}/delete/",
+            data={"csrfmiddlewaretoken": delete_token},
+            headers={"Referer": f"{self.host}/photo/{photo_id}/delete/"},
+            name="POST /photo/<id>/delete/ (cycle)",
             allow_redirects=True,
         )
